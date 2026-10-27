@@ -47,12 +47,6 @@ export const MarketOverview: React.FC<MarketOverviewProps> = ({
   const topGainers = [...stocks].sort((a, b) => b.changePercent - a.changePercent).slice(0, 5);
   const topLosers = [...stocks].sort((a, b) => a.changePercent - b.changePercent).slice(0, 5);
 
-  // Market Classification: Inside Cabin vs Outside Cabin (OTC)
-  const insideStocks = stocks.filter((s) => s.marketType !== 'OTC');
-  const otcStocks = stocks.filter((s) => s.marketType === 'OTC');
-  const insideTurnover = insideStocks.reduce((sum, s) => sum + s.turnover, 0);
-  const otcTurnover = otcStocks.reduce((sum, s) => sum + s.turnover, 0);
-
   // Group liquidity by sector
   const sectorMap: { [key: string]: { turnover: number; volume: number; count: number } } = {};
   stocks.forEach((s) => {
@@ -445,85 +439,6 @@ export const MarketOverview: React.FC<MarketOverviewProps> = ({
           <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 tabular-nums">
             <span>أعلى: {(marketSummary.tamayuz?.high ?? 36450).toLocaleString()}</span>
             <span>أدنى: {(marketSummary.tamayuz?.low ?? 35900).toLocaleString()}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Egyptian Market Structure: Inside Cabin vs Outside Cabin (OTC) Hub */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500/20 to-amber-500/20 border border-slate-700 flex items-center justify-center text-white shrink-0">
-              <Building2 className="w-5 h-5 text-emerald-400" />
-            </div>
-            <div>
-              <h3 className="font-bold text-white text-base">
-                هيكل البورصة المصرية: أسهم داخل المقصورة وسوق خارج المقصورة (OTC)
-              </h3>
-              <p className="text-xs text-slate-400">
-                متابعة شاملة لجميع الشركات المقيدة رسمياً بالسوق الرئيسي والشركات المتداولة عبر صفقات نقل الملكية وشاشات الأوامر
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={onOpenLiquidityTab}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 rounded-xl text-xs font-bold transition-all border border-slate-700/80 shrink-0"
-          >
-            <span>رادار السيولة وتصفية السوقين</span>
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Card 1: Inside Cabin */}
-          <div className="bg-slate-950/70 border border-emerald-500/30 rounded-xl p-4 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                  <span className="font-black text-white text-sm">داخل المقصورة (السوق الرئيسي المقيد)</span>
-                </div>
-                <span className="text-[11px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded-md">
-                  {insideStocks.length} شركة مقيدة
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                الأسهم المقيدة رسمياً (مؤشرات EGX 30 و EGX 70 EWI وبورصة النيل تميز). تخضع لجلسة التداول اليومية الرسمية من 10:00 ص إلى 2:30 م مع حدود سعرية محددة.
-              </p>
-            </div>
-
-            <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs tabular-nums">
-              <span className="text-slate-400">حجم السيولة المنفذة:</span>
-              <span className="font-bold text-emerald-400">
-                {(insideTurnover / 1e9).toFixed(2)} مليار ج.م
-              </span>
-            </div>
-          </div>
-
-          {/* Card 2: Outside Cabin (OTC) */}
-          <div className="bg-slate-950/70 border border-amber-500/30 rounded-xl p-4 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                  <span className="font-black text-white text-sm">خارج المقصورة (سوق الصفقات والأوامر OTC)</span>
-                </div>
-                <span className="text-[11px] font-bold text-amber-400 bg-amber-950/60 border border-amber-500/30 px-2 py-0.5 rounded-md">
-                  {otcStocks.length} شركة وصفقة
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                سوق الصفقات الخاصة ونقل الملكية للأسهم غير المقيدة أو المشطوبة (مثل فودافون مصر، بنك مصر إيران، عز للمسطحات، نايل سات OTC) عبر نظام شركة مصر للمقاصة MCDR.
-              </p>
-            </div>
-
-            <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs tabular-nums">
-              <span className="text-slate-400">قيمة صفقات خارج المقصورة:</span>
-              <span className="font-bold text-amber-400">
-                {(otcTurnover / 1e6).toFixed(1)} مليون ج.م
-              </span>
-            </div>
           </div>
         </div>
       </div>

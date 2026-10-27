@@ -27,8 +27,7 @@ export const LiquidityScreener: React.FC<LiquidityScreenerProps> = ({
   onSelectStock,
   onAddToWatchlist,
 }) => {
-  const [filterMarketType, setFilterMarketType] = useState<'ALL' | 'INSIDE_CABIN' | 'OTC'>('ALL');
-  const [filterIndex, setFilterIndex] = useState<'ALL' | 'EGX30' | 'EGX70' | 'Tamayuz'>('ALL');
+  const [filterIndex, setFilterIndex] = useState<'ALL' | 'EGX30' | 'EGX70'>('ALL');
   const [filterSector, setFilterSector] = useState<string>('ALL');
   const [filterFlow, setFilterFlow] = useState<'ALL' | 'INFLOW' | 'HIGH_TURNOVER'>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -43,25 +42,18 @@ export const LiquidityScreener: React.FC<LiquidityScreenerProps> = ({
 
   const sectors = Array.from(new Set(stocks.map((s) => s.sector)));
 
-  // Aggregate market type counts
-  const insideCabinCount = stocks.filter((s) => s.marketType !== 'OTC').length;
-  const otcCount = stocks.filter((s) => s.marketType === 'OTC').length;
-
   // Filter stocks
   const filtered = stocks.filter((stock) => {
-    const stockMarketType = stock.marketType || (stock.code.startsWith('EGS') ? 'OTC' : 'INSIDE_CABIN');
-    if (filterMarketType !== 'ALL' && stockMarketType !== filterMarketType) return false;
     if (filterIndex !== 'ALL' && stock.index !== filterIndex) return false;
     if (filterSector !== 'ALL' && stock.sector !== filterSector) return false;
     if (filterFlow === 'INFLOW' && stock.inflowPercent < 55) return false;
-    if (filterFlow === 'HIGH_TURNOVER' && stock.turnover < 50000000) return false;
+    if (filterFlow === 'HIGH_TURNOVER' && stock.turnover < 100000000) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const match =
         stock.code.toLowerCase().includes(q) ||
         stock.nameAr.includes(q) ||
-        stock.nameEn.toLowerCase().includes(q) ||
-        (stock.isin && stock.isin.toLowerCase().includes(q));
+        stock.nameEn.toLowerCase().includes(q);
       if (!match) return false;
     }
     return true;
@@ -115,108 +107,27 @@ export const LiquidityScreener: React.FC<LiquidityScreenerProps> = ({
         </div>
 
         {/* Quick Filter Counts */}
-        <div className="flex flex-wrap items-center gap-2 bg-slate-950 p-2.5 rounded-xl border border-slate-800 shrink-0 text-xs">
-          <div className="flex items-center gap-1.5">
-            <span className="text-slate-400">المطابق:</span>
-            <span className="font-bold text-emerald-400 tabular-nums">{sorted.length}</span>
-            <span className="text-slate-400">سهم</span>
-          </div>
-          <span className="text-slate-700">|</span>
-          <div className="flex items-center gap-1.5 text-[11px]">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span className="text-slate-300">داخل المقصورة:</span>
-            <span className="font-bold text-emerald-300 tabular-nums">{insideCabinCount}</span>
-          </div>
-          <span className="text-slate-700">|</span>
-          <div className="flex items-center gap-1.5 text-[11px]">
-            <span className="w-2 h-2 rounded-full bg-amber-500" />
-            <span className="text-slate-300">خارج المقصورة (OTC):</span>
-            <span className="font-bold text-amber-300 tabular-nums">{otcCount}</span>
-          </div>
+        <div className="flex items-center gap-2 bg-slate-950 p-2 rounded-xl border border-slate-800 shrink-0 text-xs">
+          <span className="text-slate-400">عدد الأسهم المطابقة:</span>
+          <span className="font-bold text-emerald-400 tabular-nums">{sorted.length}</span>
+          <span className="text-slate-400">سهم</span>
         </div>
       </div>
 
       {/* Control Bar: Filters & Search */}
-      <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3.5">
-        {/* Primary Market Classification Switcher (داخل المقصورة / خارج المقصورة) */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
-          <div className="flex items-center gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800 text-xs">
-            <button
-              onClick={() => {
-                setFilterMarketType('ALL');
-                setFilterIndex('ALL');
-              }}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-bold transition-all ${
-                filterMarketType === 'ALL'
-                  ? 'bg-slate-800 text-white shadow-sm border border-slate-700'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <span>جميع أسهم البورصة المصرية</span>
-              <span className="px-1.5 py-0.2 bg-slate-900 rounded text-[10px] text-slate-300 font-mono">
-                {stocks.length}
-              </span>
-            </button>
-
-            <button
-              onClick={() => {
-                setFilterMarketType('INSIDE_CABIN');
-                setFilterIndex('ALL');
-              }}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-bold transition-all ${
-                filterMarketType === 'INSIDE_CABIN'
-                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
-                  : 'text-emerald-400 hover:text-emerald-300'
-              }`}
-            >
-              <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              <span>داخل المقصورة (السوق الرئيسي المقيد)</span>
-              <span className="px-1.5 py-0.2 bg-emerald-950/80 rounded text-[10px] text-emerald-200 font-mono">
-                {insideCabinCount}
-              </span>
-            </button>
-
-            <button
-              onClick={() => {
-                setFilterMarketType('OTC');
-                setFilterIndex('ALL');
-              }}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-bold transition-all ${
-                filterMarketType === 'OTC'
-                  ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
-                  : 'text-amber-400 hover:text-amber-300'
-              }`}
-            >
-              <span className="w-2 h-2 rounded-full bg-amber-400" />
-              <span>خارج المقصورة (سوق الصفقات والأوامر OTC)</span>
-              <span className="px-1.5 py-0.2 bg-amber-950/80 rounded text-[10px] text-amber-200 font-mono">
-                {otcCount}
-              </span>
-            </button>
-          </div>
-
-          {filterMarketType === 'OTC' && (
-            <div className="text-xs text-amber-300/90 bg-amber-950/40 border border-amber-500/30 px-3 py-1.5 rounded-lg flex items-center gap-2">
-              <Info className="w-4 h-4 shrink-0" />
-              <span>
-                سوق خارج المقصورة يشمل نقل ملكية الشركات والصفقات الخاصة وعروض الشراء المقيدة بنظام المقاصة المصرية MCDR.
-              </span>
-            </div>
-          )}
-        </div>
-
+      <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* Index Tabs (Available when ALL or INSIDE_CABIN) */}
+          {/* Index Tabs */}
           <div className="flex items-center gap-1 p-1 bg-slate-950 rounded-lg border border-slate-800/80 text-xs">
             <button
               onClick={() => setFilterIndex('ALL')}
               className={`px-3 py-1.5 rounded-md font-medium transition-all ${
                 filterIndex === 'ALL'
-                  ? 'bg-slate-800 text-white font-bold border border-slate-700/60'
+                  ? 'bg-emerald-600 text-white font-bold'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              كل المؤشرات
+              جميع الأسهم
             </button>
             <button
               onClick={() => setFilterIndex('EGX30')}
@@ -237,16 +148,6 @@ export const LiquidityScreener: React.FC<LiquidityScreenerProps> = ({
               }`}
             >
               EGX 70
-            </button>
-            <button
-              onClick={() => setFilterIndex('Tamayuz')}
-              className={`px-3 py-1.5 rounded-md font-medium transition-all ${
-                filterIndex === 'Tamayuz'
-                  ? 'bg-emerald-600 text-white font-bold'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              تميز (بورصة النيل)
             </button>
           </div>
 
@@ -393,31 +294,19 @@ export const LiquidityScreener: React.FC<LiquidityScreenerProps> = ({
                         {idx + 1}
                       </span>
                       <div>
-                        <div className="flex flex-wrap items-center gap-1.5">
+                        <div className="flex items-center gap-2">
                           <button
                             onClick={() => onSelectStock(stock)}
-                            className="font-bold text-white hover:text-emerald-400 transition-colors text-xs font-mono"
+                            className="font-bold text-white hover:text-emerald-400 transition-colors text-xs"
                           >
                             {stock.code}
                           </button>
-                          {stock.marketType === 'OTC' ? (
-                            <span className="text-[9px] font-bold text-amber-300 bg-amber-950/90 border border-amber-500/50 px-1.5 py-0.5 rounded">
-                              خارج المقصورة OTC
-                            </span>
-                          ) : (
-                            <span className="text-[9px] font-bold text-emerald-300 bg-emerald-950/80 border border-emerald-500/30 px-1.5 py-0.5 rounded">
-                              داخل المقصورة
-                            </span>
-                          )}
-                          <span className="text-[9px] text-slate-400 px-1.5 py-0.5 bg-slate-950 border border-slate-800 rounded">
+                          <span className="text-[10px] text-slate-400 px-1.5 py-0.2 bg-slate-950 border border-slate-800 rounded">
                             {stock.index}
                           </span>
                         </div>
-                        <div className="text-[11px] text-slate-300 truncate max-w-[190px] mt-1 font-medium">
+                        <div className="text-[11px] text-slate-400 truncate max-w-[150px] mt-0.5">
                           {stock.nameAr}
-                        </div>
-                        <div className="text-[10px] text-slate-500 truncate max-w-[190px]">
-                          {stock.sector}
                         </div>
                       </div>
                     </div>

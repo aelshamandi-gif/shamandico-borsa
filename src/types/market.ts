@@ -28,10 +28,7 @@ export interface Stock {
   nameAr: string;
   nameEn: string;
   sector: string;
-  index: 'EGX30' | 'EGX70' | 'Tamayuz' | 'EGX100' | 'OTC' | 'MAIN';
-  marketType: 'INSIDE_CABIN' | 'OTC'; // داخل المقصورة أو خارج المقصورة
-  marketTypeAr: string; // 'داخل المقصورة' | 'خارج المقصورة'
-  cabinCategory?: string; // e.g. 'سوق الصفقات' | 'سوق الأوامر' | 'السوق الرئيسي'
+  index: 'EGX30' | 'EGX70' | 'Tamayuz';
   
   // Real-time market figures
   price: number; // EGP

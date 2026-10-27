@@ -90,12 +90,18 @@ async function fetchTradingViewIndices() {
   return indices;
 }
 
-import { EGX_ARABIC_NAMES, PROMINENT_OTC_STOCKS } from './src/data/egxDirectory.ts';
-
 /**
- * Fetch all EGX stocks (both Inside Cabin and Outside Cabin / OTC) from TradingView scanner
+ * Fetch EGX top stocks from TradingView scanner
  */
 async function fetchTradingViewStocks() {
+  const stockSymbols = [
+    'EGX:COMI', 'EGX:TMGH', 'EGX:SWDY', 'EGX:ABUK', 'EGX:ESRS',
+    'EGX:FWRY', 'EGX:EAST', 'EGX:HRHO', 'EGX:ETEL', 'EGX:EKHO',
+    'EGX:SKPC', 'EGX:ORAS', 'EGX:MNHD', 'EGX:HELI', 'EGX:ISPH',
+    'EGX:CERA', 'EGX:KORA', 'EGX:ARAB', 'EGX:BTFH', 'EGX:PHDC',
+    'EGX:CCAP', 'EGX:AMOC', 'EGX:MFPC', 'EGX:JUFO', 'EGX:EFIH'
+  ];
+
   const response = await fetch('https://scanner.tradingview.com/egypt/scan', {
     method: 'POST',
     headers: {
@@ -103,7 +109,7 @@ async function fetchTradingViewStocks() {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     },
     body: JSON.stringify({
-      symbols: { query: { types: [] }, tickers: [] },
+      symbols: { tickers: stockSymbols },
       columns: [
         'name',
         'close',
@@ -117,10 +123,7 @@ async function fetchTradingViewStocks() {
         'description',
         'market_cap_basic',
         'price_earnings_ttm',
-        'sector',
       ],
-      sort: { sortBy: 'Value.Traded', sortOrder: 'desc' },
-      range: [0, 350],
     }),
   });
 
@@ -131,10 +134,9 @@ async function fetchTradingViewStocks() {
   const raw = await response.json();
   const items = raw.data || [];
 
-  const scannedStocks = items.map((item: any) => {
+  const stocks = items.map((item: any) => {
     const symbol = item.s;
-    const rawCode = symbol.replace('EGX:', '');
-    const cleanCode = rawCode.replace('-EGP', '');
+    const code = symbol.replace('EGX:', '');
     const [
       name,
       close,
@@ -146,155 +148,30 @@ async function fetchTradingViewStocks() {
       volume,
       turnover,
       description,
-      marketCapBasic,
+      marketCap,
       pe,
-      rawSector,
     ] = item.d;
 
-    // Check if this stock is Outside Cabin (OTC / سوق الصفقات والأوامر)
-    // In EGX, symbols starting with EGS or having OTC flags are traded in the OTC / Deals market
-    const isOtc = cleanCode.startsWith('EGS') || rawCode.includes('OTC');
-    const meta = EGX_ARABIC_NAMES[cleanCode];
-
-    const price = Number((close || 0).toFixed(2));
-    const chg = Number((changeAbs || 0).toFixed(2));
-    const chgPct = Number((changePercent || 0).toFixed(2));
-    const vol = volume || 0;
-    const turn = turnover != null && turnover > 0 ? turnover : (vol > 0 && price > 0 ? vol * price : 0);
-
-    const nameAr = meta?.nameAr || (description ? description : cleanCode);
-    const sector = meta?.sector || rawSector || (isOtc ? 'سوق صفقات خارج المقصورة' : 'شركات مقيدة');
-    const index = isOtc ? 'OTC' : (meta?.index || 'MAIN');
-    const marketType: 'INSIDE_CABIN' | 'OTC' = isOtc ? 'OTC' : 'INSIDE_CABIN';
-    const marketTypeAr = isOtc ? 'خارج المقصورة' : 'داخل المقصورة';
-    const cabinCategory = isOtc
-      ? 'سوق الصفقات خارج المقصورة'
-      : (meta?.index === 'EGX30'
-        ? 'مؤشر EGX 30 الرئيسي'
-        : meta?.index === 'EGX70'
-        ? 'مؤشر EGX 70 EWI'
-        : meta?.index === 'Tamayuz'
-        ? 'بورصة النيل (تميز)'
-        : 'السوق الرئيسي داخل المقصورة');
-
-    // Liquidity calculations
-    const turnoverRatio = Number((turn / 35000000).toFixed(1));
-    const inflowPercent = Number(Math.min(85, Math.max(30, (50 + (chgPct * 3.5)))).toFixed(1));
-    const outflowPercent = Number((100 - inflowPercent).toFixed(1));
-    const netInflow = Math.round(turn * ((inflowPercent - 50) / 100));
-    const liquidityScore = Math.min(99, Math.max(15, Math.round(Math.log10(Math.max(turn, 1000)) * 12)));
-
     return {
-      code: cleanCode,
+      code,
       symbol,
-      isin: meta?.isin || (cleanCode.startsWith('EGS') ? cleanCode : `EGS${cleanCode}01`),
-      nameAr,
-      nameEn: description || name,
-      sector,
-      index,
-      marketType,
-      marketTypeAr,
-      cabinCategory,
-      price,
-      change: chg,
-      changePercent: chgPct,
-      open: open != null ? Number(open.toFixed(2)) : price,
-      high: high != null ? Number(high.toFixed(2)) : price,
-      low: low != null ? Number(low.toFixed(2)) : price,
-      close: price,
-      previousClose: Number((price - chg).toFixed(2)),
-      volume: vol,
-      turnover: Math.round(turn),
-      tradesCount: Math.max(1, Math.round(vol / (price > 50 ? 500 : 2500))),
-      avgTradeSize: Math.round(turn / Math.max(1, Math.round(vol / 1500))),
-      turnoverRatio,
-      liquidityScore,
-      inflowPercent,
-      outflowPercent,
-      netInflow,
-      smartMoneyIndex: Math.min(95, Math.max(20, Math.round(50 + (chgPct * 4) + (turnoverRatio * 2)))),
-      marketCap: marketCapBasic ? Number((marketCapBasic / 1e9).toFixed(2)) : Number(((price * 150000000) / 1e9).toFixed(2)),
-      peRatio: pe ? Number(pe.toFixed(2)) : 8.5,
-      pbRatio: 1.4,
-      dividendYield: 4.2,
-      eps: Number((price / (pe || 8.5)).toFixed(2)),
-      bookValuePerShare: Number((price / 1.4).toFixed(2)),
-      roe: 21.5,
-      fairValue: Number((price * 1.15).toFixed(2)),
-      marginOfSafety: 13.0,
-      sharesOutstanding: 500,
-      freeFloat: isOtc ? 12.5 : 45.0,
-      foreignOwnership: 15.0,
-      institutionOwnership: 55.0,
-      week52High: Number((price * 1.25).toFixed(2)),
-      week52Low: Number((price * 0.75).toFixed(2)),
-      beta: isOtc ? 0.65 : 1.05,
+      price: Number((close || 0).toFixed(2)),
+      change: Number((changeAbs || 0).toFixed(2)),
+      changePercent: Number((changePercent || 0).toFixed(2)),
+      open: open != null ? Number(open.toFixed(2)) : Number((close || 0).toFixed(2)),
+      high: high != null ? Number(high.toFixed(2)) : Number((close || 0).toFixed(2)),
+      low: low != null ? Number(low.toFixed(2)) : Number((close || 0).toFixed(2)),
+      volume: volume || 0,
+      turnover: turnover || (volume ? volume * close : 0),
+      marketCap: marketCap || 0,
+      pe: pe ? Number(pe.toFixed(2)) : null,
+      description,
       source: 'TradingView Live Feed',
       lastUpdated: new Date().toISOString(),
     };
   });
 
-  // Also include Prominent Egyptian OTC Stocks if not present in the scan
-  const existingCodes = new Set(scannedStocks.map((s: any) => s.code));
-  const otcAdditions = PROMINENT_OTC_STOCKS.filter((otc) => !existingCodes.has(otc.code)).map((otc, idx) => {
-    const basePrice = [182.50, 42.00, 28.50, 65.00, 94.20, 15.60, 22.80, 115.00, 31.40, 88.00, 45.00, 50.00][idx % 12];
-    const change = Number(((Math.random() - 0.45) * 1.5).toFixed(2));
-    const changePercent = Number(((change / basePrice) * 100).toFixed(2));
-    const volume = Math.floor(15000 + Math.random() * 85000);
-    const turnover = Math.round(volume * basePrice);
-    const inflowPercent = Number((50 + changePercent * 2).toFixed(1));
-
-    return {
-      code: otc.code,
-      symbol: `EGX:${otc.code}`,
-      isin: otc.isin,
-      nameAr: otc.nameAr,
-      nameEn: otc.nameEn,
-      sector: otc.sector,
-      index: otc.index,
-      marketType: otc.marketType,
-      marketTypeAr: otc.marketTypeAr,
-      cabinCategory: otc.cabinCategory,
-      price: basePrice,
-      change,
-      changePercent,
-      open: basePrice,
-      high: Number((basePrice * 1.02).toFixed(2)),
-      low: Number((basePrice * 0.98).toFixed(2)),
-      close: basePrice,
-      previousClose: Number((basePrice - change).toFixed(2)),
-      volume,
-      turnover,
-      tradesCount: Math.floor(12 + Math.random() * 35),
-      avgTradeSize: Math.round(turnover / 25),
-      turnoverRatio: 0.8,
-      liquidityScore: 45,
-      inflowPercent,
-      outflowPercent: Number((100 - inflowPercent).toFixed(1)),
-      netInflow: Math.round(turnover * 0.1),
-      smartMoneyIndex: 58,
-      marketCap: Number(((basePrice * 45000000) / 1e9).toFixed(2)),
-      peRatio: 6.8,
-      pbRatio: 1.1,
-      dividendYield: 6.5,
-      eps: Number((basePrice / 6.8).toFixed(2)),
-      bookValuePerShare: Number((basePrice / 1.1).toFixed(2)),
-      roe: 18.0,
-      fairValue: Number((basePrice * 1.2).toFixed(2)),
-      marginOfSafety: 16.7,
-      sharesOutstanding: 45,
-      freeFloat: 8.5,
-      foreignOwnership: 22.0,
-      institutionOwnership: 68.0,
-      week52High: Number((basePrice * 1.3).toFixed(2)),
-      week52Low: Number((basePrice * 0.7).toFixed(2)),
-      beta: 0.55,
-      source: 'سوق صفقات خارج المقصورة / مصر للمقاصة MCDR',
-      lastUpdated: new Date().toISOString(),
-    };
-  });
-
-  return [...scannedStocks, ...otcAdditions];
+  return stocks;
 }
 
 // API Routes

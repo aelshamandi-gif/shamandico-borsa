@@ -9,8 +9,6 @@ import {
   INITIAL_STOCKS,
   INITIAL_MARKET_SUMMARY,
   INITIAL_WATCHLISTS,
-  generateCandles,
-  generateOrderBook,
 } from './data/egxData';
 import { INITIAL_NEWS_ITEMS } from './data/newsData';
 import { Header } from './components/Header';
@@ -467,23 +465,14 @@ export default function App() {
         }
 
         // Update individual stocks with live prices & turnover
-        // Update individual stocks and merge all 300+ Egyptian stocks (Inside Cabin & OTC)
         if (Array.isArray(data.stocks) && data.stocks.length > 0) {
           const liveStocksMap = new Map(data.stocks.map((s: any) => [s.code, s]));
-
-          setStocks((prevStocks) => {
-            const existingCodes = new Set(prevStocks.map((s) => s.code));
-
-            // Update existing stocks with live values & retain full historical series
-            const updatedExisting = prevStocks.map((stock) => {
+          setStocks((prevStocks) =>
+            prevStocks.map((stock) => {
               const live = liveStocksMap.get(stock.code) as any;
               if (live) {
                 return {
                   ...stock,
-                  nameAr: live.nameAr || stock.nameAr,
-                  marketType: live.marketType || stock.marketType,
-                  marketTypeAr: live.marketTypeAr || stock.marketTypeAr,
-                  cabinCategory: live.cabinCategory || stock.cabinCategory,
                   price: live.price || stock.price,
                   change: live.change != null ? live.change : stock.change,
                   changePercent: live.changePercent != null ? live.changePercent : stock.changePercent,
@@ -492,84 +481,16 @@ export default function App() {
                   low: Math.min(stock.low, live.low || stock.price),
                   volume: live.volume || stock.volume,
                   turnover: live.turnover || stock.turnover,
-                  inflowPercent: live.inflowPercent ?? stock.inflowPercent,
-                  outflowPercent: live.outflowPercent ?? stock.outflowPercent,
-                  netInflow: live.netInflow ?? stock.netInflow,
-                  liquidityScore: live.liquidityScore ?? stock.liquidityScore,
-                  smartMoneyIndex: live.smartMoneyIndex ?? stock.smartMoneyIndex,
                 };
               }
               return stock;
-            });
-
-            // Convert newly synced stocks from scanner to full Stock objects
-            const newlyDiscovered: Stock[] = [];
-            data.stocks.forEach((live: any) => {
-              if (!existingCodes.has(live.code)) {
-                const price = live.price || 10.0;
-                const change = live.change || 0;
-                const isOtc = live.marketType === 'OTC' || live.code.startsWith('EGS');
-                newlyDiscovered.push({
-                  code: live.code,
-                  isin: live.isin || `EGS${live.code}01`,
-                  nameAr: live.nameAr || live.code,
-                  nameEn: live.nameEn || live.code,
-                  sector: live.sector || (isOtc ? 'سوق صفقات خارج المقصورة' : 'شركات مقيدة'),
-                  index: live.index || (isOtc ? 'OTC' : 'MAIN'),
-                  marketType: isOtc ? 'OTC' : 'INSIDE_CABIN',
-                  marketTypeAr: isOtc ? 'خارج المقصورة' : 'داخل المقصورة',
-                  cabinCategory:
-                    live.cabinCategory ||
-                    (isOtc ? 'سوق صفقات خارج المقصورة' : 'السوق الرئيسي داخل المقصورة'),
-                  price,
-                  change,
-                  changePercent: live.changePercent || 0,
-                  open: live.open || price,
-                  high: live.high || price,
-                  low: live.low || price,
-                  close: price,
-                  previousClose: live.previousClose || Number((price - change).toFixed(2)),
-                  volume: live.volume || 0,
-                  turnover: live.turnover || 0,
-                  tradesCount: live.tradesCount || 15,
-                  avgTradeSize: live.avgTradeSize || 20000,
-                  turnoverRatio: live.turnoverRatio || 0.1,
-                  liquidityScore: live.liquidityScore || 40,
-                  inflowPercent: live.inflowPercent || 50,
-                  outflowPercent: live.outflowPercent || 50,
-                  netInflow: live.netInflow || 0,
-                  smartMoneyIndex: live.smartMoneyIndex || 50,
-                  marketCap: live.marketCap || 1.2,
-                  peRatio: live.peRatio || 8.0,
-                  pbRatio: live.pbRatio || 1.2,
-                  dividendYield: live.dividendYield || 4.0,
-                  eps: live.eps || 1.5,
-                  bookValuePerShare: live.bookValuePerShare || 8.0,
-                  roe: live.roe || 18.0,
-                  fairValue: live.fairValue || Number((price * 1.15).toFixed(2)),
-                  marginOfSafety: live.marginOfSafety || 13.0,
-                  sharesOutstanding: live.sharesOutstanding || 100,
-                  freeFloat: live.freeFloat || (isOtc ? 10.0 : 40.0),
-                  foreignOwnership: live.foreignOwnership || 10.0,
-                  institutionOwnership: live.institutionOwnership || 50.0,
-                  week52High: live.week52High || Number((price * 1.25).toFixed(2)),
-                  week52Low: live.week52Low || Number((price * 0.75).toFixed(2)),
-                  beta: live.beta || (isOtc ? 0.6 : 1.0),
-                  candles: generateCandles(price, 0.02, 0.2, 45),
-                  orderBook: generateOrderBook(price),
-                  disclosures: live.disclosures || [],
-                });
-              }
-            });
-
-            return [...updatedExisting, ...newlyDiscovered];
-          });
+            })
+          );
         }
 
-        const stocksCount = Array.isArray(data.stocks) ? data.stocks.length : 0;
         setSyncSuccessToast({
           show: true,
-          msg: `تمت مزامنة ${stocksCount} سهماً (داخل وخارج المقصورة) والمؤشرات بنجاح`,
+          msg: 'تمت مزامنة أسعار المؤشرات والأسهم بنجاح',
           source: data.sourceNameAr,
         });
         setTimeout(() => setSyncSuccessToast(null), 4000);
